@@ -153,13 +153,40 @@ button:active{transform:translateY(1px)}
  .card{width:137mm;height:180mm;max-width:none;aspect-ratio:auto;box-shadow:none;margin:10mm auto 0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
 }
 
-.cat-tag{float:right;margin-left:.6em;padding:.05em .6em;border:1px solid rgba(155,107,54,.8);border-radius:999px;background:rgba(255,250,238,.6);color:#80572f;font-family:Georgia,"Palatino Linotype",serif;font-size:.76em;line-height:1.5;letter-spacing:.06em;white-space:nowrap}
+.cat-tag{float:right;margin-left:.6em;color:#80572f;font-family:Georgia,"Palatino Linotype",serif;font-size:.76em;line-height:1.5;letter-spacing:.06em;white-space:nowrap}
 .record .cat-tag{float:none;flex:none;margin-left:auto}
 [hidden]{display:none!important}
 #viewPanel[hidden],#editPanel[hidden]{display:none}
-#recordList{max-height:55vh;overflow:auto}
-.toolbar button{min-width:112px}
-@media(max-width:760px){#recordList{max-height:42vh}}
+#recordList{max-height:300px;overflow-y:auto}
+.toolbar button{min-width:104px}
+@media(max-width:760px){#recordList{max-height:300px}}
+#galleryPanel{grid-column:1/-1}
+.gallery-strip{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 2px 12px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+.g-slide{flex:0 0 88%;max-width:400px;scroll-snap-align:center}
+.g-slide .card{max-width:100%}
+.g-pos{text-align:center;color:#785b39;font-size:13px;letter-spacing:.12em;margin-top:2px}
+.g-empty{text-align:center;color:#785b39;padding:24px 0}
+.g-photos{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.g-photos .g-photo{flex:0 0 100%;height:100%;scroll-snap-align:center}
+.g-photos img{width:100%;height:100%;object-fit:contain;display:block}
+.g-dots{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:5px;z-index:3;pointer-events:none}
+.g-dots span{width:6px;height:6px;border-radius:50%;background:rgba(128,87,47,.35)}
+.g-dots span.on{background:#80572f}
+#cardNo{text-align:center;font-size:12px;letter-spacing:.14em;color:#9a7a50;margin:0 0 6px}
+.list-no{flex:none;min-width:2.2em;text-align:right;color:#9a7a50;font-size:12px}
+body,.preview-wrap{touch-action:manipulation}
+.g-badge{position:absolute;bottom:calc(100% + 3px);right:0;z-index:4;font:12px Georgia,"Palatino Linotype",serif;letter-spacing:.08em;color:#80572f;background:transparent;padding:0;pointer-events:none;white-space:nowrap}
+.g-slide .photo-frame{margin-top:12px}
+body.g-clean{padding:0;overflow:hidden}
+body.g-clean header,body.g-clean .toolbar{display:none!important}
+body.g-clean .app{max-width:none;margin:0}
+body.g-clean .workspace{display:block}
+body.g-clean #galleryPanel{position:relative;height:100vh;height:100dvh;padding:0;border:0;border-radius:0;background:none;box-shadow:none;display:flex;flex-direction:column}
+body.g-clean #galleryPanel h2,body.g-clean #galleryPos{display:none}
+body.g-clean .gallery-strip{flex:1;min-height:0;align-items:center;gap:0;padding:0}
+body.g-clean .g-slide{flex:0 0 100%;max-width:none;display:flex;align-items:center;justify-content:center}
+body.g-clean .g-slide .card{width:min(100vw,50vh);width:min(100vw,50dvh);max-width:none}
+body.g-clean .g-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0}
 </style>
 </head>
 <body>
@@ -169,8 +196,9 @@ button:active{transform:translateY(1px)}
  <h1>Botanical Archive Card Builder</h1>
  <p>ベゴニア植物記録カード作成</p>
 </header>
-<nav class="toolbar" style="display:flex;gap:8px;justify-content:center;margin:12px 0"><button type="button" id="viewMode">ビューモード</button><button type="button" class="secondary" id="editMode">編集モード</button></nav>
+<nav class="toolbar" style="display:flex;gap:8px;justify-content:center;margin:12px 0"><button type="button" id="galleryMode">観賞モード</button><button type="button" class="secondary" id="registerMode">登録モード</button><button type="button" class="secondary" id="editMode">編集モード</button></nav>
 <main class="workspace">
+<section class="editor" id="galleryPanel" aria-label="観賞ギャラリー"><h2>観賞ギャラリー</h2><div class="gallery-strip" id="galleryStrip"></div><p class="g-pos" id="galleryPos" role="status"></p><p class="g-empty" id="galleryEmpty" hidden>まだ登録がありません</p></section>
 <section class="editor" id="viewPanel" hidden><h2>登録コレクション</h2><div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><select id="sortBy" style="flex:1"><option value="scientific">学名 ABC順</option><option value="newest">登録日 新しい順</option><option value="oldest">登録日 古い順</option><option value="japanese">和名順</option></select><select id="catFilter" style="flex:1" aria-label="種類で絞り込み"><option value="all">種類：すべて</option><option value="species">原種</option><option value="hybrid">交配種</option><option value="rex">レックス</option><option value="other">その他</option></select></div><div id="recordList"></div><p id="viewStatus" class="hint"></p><div class="actions"><button id="newRecord" type="button">新規登録</button><button id="editSelected" class="secondary" type="button" disabled>選択カードを編集</button><button id="deleteSelected" class="secondary" type="button" disabled>削除</button></div><div style="margin-top:14px;border-top:1px solid #cbb27f;padding-top:10px"><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="secondary" id="exportBtn">データを書き出す（バックアップ）</button><button type="button" class="secondary" id="importBtn">データを読み込む（復元）</button><input type="file" id="importFile" accept="application/json,.json" hidden></div><p class="hint">データはこのスマホの中だけに保存されます。機種変更の前に「書き出す」でバックアップファイルを作っておくと、新しいスマホで「読み込む」から記録を引き継げます。</p><p class="hint" id="dataStatus" role="status"></p></div></section>
 <section class="editor" id="editPanel" aria-label="カード情報の入力">
  <h2 id="formTitle">植物データ</h2>
@@ -198,6 +226,7 @@ button:active{transform:translateY(1px)}
 
 <section class="preview-wrap" aria-label="カードプレビュー">
  <p class="preview-label">CARD PREVIEW</p>
+ <p id="cardNo" hidden></p>
  <article class="card" id="card">
   <svg class="ornament" viewBox="0 0 700 900" preserveAspectRatio="none" aria-hidden="true">
    <defs>
@@ -325,22 +354,45 @@ const save=r=>new Promise((ok,no)=>{const t=db.transaction('cards','readwrite');
 const del=id=>new Promise((ok,no)=>{const t=db.transaction('cards','readwrite');t.objectStore('cards').delete(id);t.oncomplete=ok;t.onerror=()=>no(t.error)});
 const date=v=>v?(v.replaceAll('-','.')):'';
 function scientific(s){
- const f=document.createDocumentFragment(),parts=(s||'').match(/'[^']*'|"[^"]*"|×|[^\s]+|\s+/g)||[];
- const marks=['sp.','spp.','subsp.','ssp.','var.','f.','forma','cv.','cf.','aff.','×','x'];
+ const f=document.createDocumentFragment(),parts=(s||'').match(/'[^']*'|\"[^\"]*\"|×|[^\s]+|\s+/g)||[];
+ const RANK_NEXT=new Set(['subsp','ssp','var','f','forma','cf','aff','spp']);
+ const MARKS=new Set(['sp','spp','subsp','ssp','var','f','forma','cv','cf','aff']);
  let genus=false,epi=false,next=false,stop=false;
- parts.forEach(t=>{if(/^\s+$/.test(t)){f.append(document.createTextNode(t));return}
-  const c=t.replace(/^[([{]+|[)\]},;:]+$/g,''),l=c.toLowerCase().replace(/[.,;:]$/,'');
-  if(/^(['"]).*\1$/.test(t)){f.append(document.createTextNode(t));stop=true;next=false;return}
-  if(marks.includes(l)){f.append(document.createTextNode(t));if(['sp.','spp.','cv.'].includes(l)){stop=true;next=false}else if(['subsp.','ssp.','var.','f.','forma','cf.','aff.'].includes(l)){next=true;stop=false}else if(l==='×'||l==='x')next=true;return}
-  let it=false;if(!genus){it=true;genus=true}else if(next){it=true;next=false;epi=true}else if(!stop&&!epi&&/^[a-z][a-z-]*$/.test(c)){it=true;epi=true}else if(!stop&&epi&&/^[a-z][a-z-]*$/.test(c))it=true;
-  if(it){const e=document.createElement('i');e.textContent=t;f.append(e)}else f.append(document.createTextNode(t));
- });return f;
+ const emit=(tx,it)=>{if(it){const e=document.createElement('i');e.textContent=tx;f.append(e)}else f.append(document.createTextNode(tx))};
+ parts.forEach(t=>{
+  if(/^\s+$/.test(t)){f.append(document.createTextNode(t));return}
+  if(/^(['"])[\s\S]*\1$/.test(t)&&t.length>1){emit(t,false);stop=true;next=false;return}
+  const core=t.replace(/^[([{]+/,'').replace(/[)\]},;:]+$/,'');
+  const key=core.toLowerCase().replace(/\.$/,'');
+  if(core==='×'||key==='x'){emit(t,false);next=true;stop=false;return}
+  if(MARKS.has(key)){
+   emit(t,false);
+   if(key==='sp'||key==='cv'){stop=true;next=false}
+   else if(RANK_NEXT.has(key)){next=true;stop=false}
+   return;
+  }
+  let it=false;
+  if(!genus){it=!stop&&/^[A-Z]/.test(core);genus=true;next=false}
+  else if(next){it=true;next=false;epi=true}
+  else if(!stop&&!epi&&/^[a-z]/.test(core)){it=true;epi=true}
+  else if(!stop&&epi&&/^[a-z]/.test(core))it=true;
+  emit(t,it);
+ });
+ return f;
+}
+function refreshCardNo(){
+ const el=$('cardNo');if(!el)return;
+ const rid=editing||selected,hide=(formActive&&!editing)||!rid;
+ const i=hide?-1:sorted().findIndex(x=>x.id===rid);
+ if(i<0){el.hidden=true;el.textContent='';return}
+ el.hidden=false;el.textContent='No. '+(i+1)+' / '+records.length;
 }
 function showCard(r){
  const jn=$('v-jpname');jn.textContent=r?.jpname||'';const jt=catTag(r?.category);if(jt)jn.append(jt);$('v-latin').replaceChildren(scientific(r?.latin||''));
  $('v-acquired').textContent=date(r?.acquired);$('v-registered').textContent=date(r?.registered);
  $('v-origin').textContent=r?.origin||'';$('v-memo').textContent=r?.memo||'';
  photos=r?.photos||[];photoIndex=0;drawPhoto();
+ refreshCardNo();
 }
 function drawPhoto(){
  const st=$('photoStage'),nav=$('photoNav'),dots=$('photoDots');st.replaceChildren();dots.replaceChildren();
@@ -354,7 +406,24 @@ $('prevPhoto').onclick=()=>move(-1);$('nextPhoto').onclick=()=>move(1);
 function form(){return Object.fromEntries(fields.map(k=>[k,$(k).value]))}
 function preview(){showCard({...form(),photos})}
 fields.forEach(k=>$(k).addEventListener('input',preview));$('category').addEventListener('change',preview);
-function mode(v){$('viewPanel').hidden=v!=='view';$('editPanel').hidden=v!=='edit';$('viewMode').classList.toggle('secondary',v!=='view');$('editMode').classList.toggle('secondary',v!=='edit')}
+let curMode='gallery';
+function mode(v){
+ curMode=v;
+ document.body.classList.toggle('g-clean',v==='gallery');
+ $('galleryPanel').hidden=v!=='gallery';
+ $('viewPanel').hidden=v!=='edit';
+ $('editPanel').hidden=true;
+ document.querySelector('.preview-wrap').hidden=v==='gallery';
+ $('galleryMode').classList.toggle('secondary',v!=='gallery');
+ $('registerMode').classList.toggle('secondary',v!=='register');
+ $('editMode').classList.toggle('secondary',v!=='edit');
+ if(v==='gallery')buildGallery();
+ refreshCardNo();
+}
+function showForm(){
+ $('editPanel').hidden=false;$('viewPanel').hidden=true;$('galleryPanel').hidden=true;
+ document.querySelector('.preview-wrap').hidden=false;
+}
 function sorted(){
  const a=[...records],m=$('sortBy').value;
  const cmp=(x,y)=>String(x||'').localeCompare(String(y||''),m==='japanese'?'ja':'en',{sensitivity:'base',numeric:true});
@@ -362,7 +431,9 @@ function sorted(){
 }
 function list(){
  const box=$('recordList'),st=box.scrollTop;box.replaceChildren();
- const cf=$('catFilter').value;sorted().filter(r=>cf==='all'||r.category===cf).forEach(r=>{const b=document.createElement('button');b.type='button';b.className='record';b.style.cssText='display:flex;width:100%;text-align:left;background:#f8f0df;color:#80572f;border:1px solid #b99a6c;margin:5px 0;align-items:center;gap:9px';
+ const cf=$('catFilter').value;
+ sorted().forEach((r,i)=>{if(cf!=='all'&&r.category!==cf)return;const b=document.createElement('button');b.type='button';b.className='record';b.style.cssText='display:flex;width:100%;text-align:left;background:#f8f0df;color:#80572f;border:1px solid #b99a6c;margin:5px 0;align-items:center;gap:9px';
+ const no=document.createElement('span');no.className='list-no';no.textContent=i+1;b.append(no);
  const im=document.createElement('img');im.style.cssText='width:48px;height:48px;object-fit:contain;background:#ead9b4';if(r.photos?.[0])im.src=r.photos[0];
  const t=document.createElement('span');t.textContent=(r.latin||r.jpname||'名称未入力')+'　'+date(r.registered);b.append(im,t);const lt=catTag(r.category);if(lt)b.append(lt);
  if(r.id===selected)b.style.outline='2px solid #a77b49';b.onclick=()=>{selected=r.id;showCard(r);list()};box.append(b)});
@@ -370,13 +441,86 @@ function list(){
  $('viewStatus').textContent='登録件数：'+records.length+'件';
  $('editSelected').disabled=!selected;$('deleteSelected').disabled=!selected;
 }
-function blank(){formActive=true;editing=null;photos=[];$('editStatus').textContent='';fields.forEach(k=>$(k).value='');$('category').value='species';$('photos').value='';$('photoStatus').textContent='写真は未選択です';$('formTitle').textContent='植物データの新規登録';$('registered').value=todayLocal();preview();mode('edit')}
-function edit(id){const r=records.find(x=>x.id===id);if(!r)return;formActive=true;$('editStatus').textContent='';editing=id;fields.forEach(k=>$(k).value=r[k]||'');$('category').value=r.category||'species';photos=[...(r.photos||[])];$('photos').value='';$('photoStatus').textContent='登録済み写真 '+photos.length+'枚';$('formTitle').textContent='植物データの編集';preview();mode('edit')}
-$('viewMode').onclick=()=>{mode('view');list()};
-$('editMode').onclick=()=>{if(formActive)mode('edit');else if(selected)edit(selected);else blank()};
+function blank(){formActive=true;editing=null;photos=[];$('editStatus').textContent='';fields.forEach(k=>$(k).value='');$('category').value='species';$('photos').value='';$('photoStatus').textContent='写真は未選択です';$('formTitle').textContent='植物データの新規登録';$('registered').value=todayLocal();preview();mode('register');showForm()}
+function edit(id){const r=records.find(x=>x.id===id);if(!r)return;formActive=true;$('editStatus').textContent='';editing=id;fields.forEach(k=>$(k).value=r[k]||'');$('category').value=r.category||'species';photos=[...(r.photos||[])];$('photos').value='';$('photoStatus').textContent='登録済み写真 '+photos.length+'枚';$('formTitle').textContent='植物データの編集';preview();if(curMode!=='edit')mode('edit');showForm()}
+function goEdit(){
+ if(formActive&&editing){mode('edit');showForm()}
+ else{formActive=false;mode('edit');const r=records.find(x=>x.id===selected);showCard(r||null);list()}
+}
+$('galleryMode').onclick=()=>mode('gallery');
+$('registerMode').onclick=()=>{if(formActive&&!editing){mode('register');showForm()}else blank()};
+$('editMode').onclick=goEdit;
+function fillGalleryCard(card,r,n){
+ const q=id=>card.querySelector('#'+id);
+ const stage=q('photoStage'),nav=q('photoNav'),ph=r.photos||[];
+ stage.replaceChildren();
+ if(ph.length){
+  const wrap=document.createElement('div');wrap.className='g-photos';
+  ph.forEach(src=>{const c=document.createElement('div');c.className='g-photo';const im=document.createElement('img');im.src=src;im.alt='植物写真';c.append(im);wrap.append(c)});
+  stage.append(wrap);
+  if(ph.length>1){
+   const dots=document.createElement('div');dots.className='g-dots';
+   ph.forEach(()=>dots.append(document.createElement('span')));
+   dots.children[0].classList.add('on');
+   card.querySelector('.photo-frame').append(dots);
+   wrap.addEventListener('scroll',()=>{const i=Math.max(0,Math.min(ph.length-1,Math.round(wrap.scrollLeft/Math.max(1,wrap.clientWidth))));[...dots.children].forEach((d,j)=>d.classList.toggle('on',j===i))},{passive:true});
+  }
+ }
+ else{const x=document.createElement('span');x.className='no-photo';x.textContent='Botanical Portrait';stage.append(x)}
+ if(nav)nav.remove();
+ const badge=document.createElement('span');badge.className='g-badge';badge.textContent=n+' / '+records.length;card.querySelector('.photo-frame').append(badge);
+ const jn=q('v-jpname');jn.textContent=r.jpname||'';const jt=catTag(r.category);if(jt)jn.append(jt);
+ q('v-latin').replaceChildren(scientific(r.latin||''));
+ q('v-acquired').textContent=date(r.acquired);q('v-registered').textContent=date(r.registered);
+ q('v-origin').textContent=r.origin||'';q('v-memo').textContent=r.memo||'';
+ card.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+ card.removeAttribute('id');
+ return card;
+}
+function buildGallery(){
+ const strip=$('galleryStrip');strip.replaceChildren();strip.scrollLeft=0;
+ const arr=sorted(),cf=$('catFilter').value,slides=arr.filter(r=>cf==='all'||r.category===cf);
+ $('galleryEmpty').hidden=slides.length>0;
+ slides.forEach(r=>{
+  const slide=document.createElement('div');slide.className='g-slide';slide.dataset.rid=r.id;slide.dataset.n=arr.indexOf(r)+1;
+  slide.append(fillGalleryCard($('card').cloneNode(true),r,arr.indexOf(r)+1));
+  slide.addEventListener('click',()=>{selected=r.id;refreshCardNo()});
+  strip.append(slide);
+ });
+ updateGalleryPos();
+}
+function currentSlide(){
+ const strip=$('galleryStrip');if(!strip.children.length)return null;
+ const mid=strip.scrollLeft+strip.clientWidth/2;let best=null,bd=Infinity;
+ [...strip.children].forEach(s=>{const c=s.offsetLeft+s.offsetWidth/2,d=Math.abs(c-mid);if(d<bd){bd=d;best=s}});
+ return best;
+}
+function updateGalleryPos(){
+ const s=currentSlide();
+ $('galleryPos').textContent=s?(s.dataset.n+' / '+records.length):'';
+}
+function scrollToSlide(id){
+ const strip=$('galleryStrip'),s=[...strip.children].find(x=>x.dataset.rid===id);if(!s)return;
+ strip.scrollTo({left:s.offsetLeft-(strip.clientWidth-s.offsetWidth)/2,behavior:'smooth'});
+ setTimeout(updateGalleryPos,400);
+}
+$('galleryStrip').addEventListener('scroll',()=>requestAnimationFrame(updateGalleryPos),{passive:true});
+const MODE_ORDER=['gallery','register','edit'];
+function cycleMode(){
+ const n=MODE_ORDER[(MODE_ORDER.indexOf(curMode)+1)%MODE_ORDER.length];
+ if(n==='gallery')mode('gallery');else if(n==='register')blank();else goEdit();
+}
+let lastTap=0,lastCycle=0;
+function doCycle(){lastCycle=Date.now();cycleMode()}
+function onTapEnd(e){if(e.target.closest('button,select,input,textarea,a'))return;const n=Date.now();if(n-lastTap<350){lastTap=0;doCycle()}else lastTap=n}
+function onDblClick(e){if(e.target.closest('button,select,input,textarea,a'))return;if(Date.now()-lastCycle>500)doCycle()}
+[$('galleryStrip'),document.querySelector('.preview-wrap'),document.querySelector('header')].forEach(el=>{
+ el.addEventListener('touchend',onTapEnd,{passive:true});
+ el.addEventListener('dblclick',onDblClick);
+});
 $('newRecord').onclick=blank;
 $('editSelected').onclick=()=>edit(selected);
-$('cancelEdit').onclick=()=>{formActive=false;mode('view');const r=records.find(x=>x.id===selected);showCard(r||null);list()};
+$('cancelEdit').onclick=()=>{formActive=false;mode('edit');const r=records.find(x=>x.id===selected);showCard(r||null);list()};
 $('sortBy').onchange=list;$('catFilter').onchange=list;
 $('exportBtn').onclick=async()=>{
  try{
@@ -417,14 +561,14 @@ async function shrink(file){
 }
 $('saveRecord').onclick=async()=>{
  const d=form();if(!d.latin.trim()&&!d.jpname.trim()){alert('和名または学名を入力してください');return}
- const old=records.find(x=>x.id===editing),now=new Date().toISOString();
+ const old=records.find(x=>x.id===editing),now=new Date().toISOString(),wasNew=!editing;
  const r={...d,photos:[...photos],id:editing||('card_'+Date.now()),created:old?.created||now,updated:now};
- try{await save(r);records=await all();selected=r.id;formActive=false;mode('view');showCard(r);list()}
+ try{await save(r);records=await all();selected=r.id;formActive=false;if(wasNew){mode('gallery');requestAnimationFrame(()=>scrollToSlide(r.id))}else{mode('edit');showCard(r);list()}}
  catch(e){$('editStatus').textContent='保存できませんでした。ブラウザの保存容量をご確認ください'}
 };
 $('deleteSelected').onclick=async()=>{const r=records.find(x=>x.id===selected);if(!r||!confirm('このカードを削除しますか？'))return;await del(selected);records=await all();selected=null;showCard(null);list()};
 $('printBtn').onclick=()=>window.print();
-(async()=>{try{await openDB();records=await all();if(records.length){records.sort((a,b)=>String(b.updated).localeCompare(String(a.updated)));selected=records[0].id;showCard(records[0])}else showCard(null);list();mode('view')}
+(async()=>{try{await openDB();records=await all();if(records.length){records.sort((a,b)=>String(b.updated).localeCompare(String(a.updated)));selected=records[0].id;showCard(records[0])}else showCard(null);list();mode('gallery')}
 catch(e){$('viewStatus').textContent='このブラウザでは保存機能を利用できません。最新版のSafariまたはChromeをお試しください'}})();
 })();
 </script>
