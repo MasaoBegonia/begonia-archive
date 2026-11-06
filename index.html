@@ -53,6 +53,12 @@ textarea{min-height:88px;resize:vertical;line-height:1.6}
 .field select{width:100%;border:1px solid #bba27d;border-radius:4px;background:rgba(255,252,241,.88);color:#80572f;padding:10px 11px;font:inherit;font-size:15px;outline:none;box-shadow:inset 0 1px 3px rgba(73,49,23,.06)}
 .hint{font-size:11px;color:#806b4f;line-height:1.5;margin:5px 0 0}
 .photo-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.photo-slots{display:flex;flex-direction:column;gap:8px}
+.photo-slot{display:flex;align-items:center;gap:9px;background:rgba(255,252,241,.55);border:1px solid #d8c49c;border-radius:4px;padding:6px 8px}
+.photo-slot img{width:44px;height:44px;object-fit:contain;background:#ead9b4;border-radius:3px;flex:none}
+.photo-slot .ph-empty{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;background:#ead9b4;border-radius:3px;color:#9b805a;font-size:10px}
+.photo-slot .ph-name{flex:1;font-size:12px;color:#735a3b}
+.photo-slot button{min-height:32px;padding:5px 10px;font-size:12px}
 input[type=file]{max-width:100%;font-size:12px}
 .photo-status{font-size:11px;color:#735a3b}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
@@ -211,8 +217,9 @@ body.g-clean .g-empty{position:absolute;inset:0;display:flex;align-items:center;
  <div class="field"><label for="origin">国・地域</label><input id="origin" type="text" placeholder="例：Malaysia, Sarawak"></div>
  <div class="field"><label for="memo">特性・メモ（3行分）</label><textarea rows="3" style="min-height:4.5em" id="memo" placeholder="草姿、葉の特徴、生育環境、入手先など"></textarea></div>
  <div class="field">
-  <label for="photos">写真（最大3枚）</label>
-  <div class="photo-tools"><input id="photos" type="file" accept="image/*" multiple><span class="photo-status" id="photoStatus">写真は長辺400px・JPEG品質80%に自動調整</span></div>
+  <label>写真（最大3枚）</label>
+  <div id="photoSlots" class="photo-slots"></div>
+  <p class="photo-status" id="photoStatus">写真は長辺400px・JPEG品質80%に自動調整</p>
   <p class="hint">画像はこのブラウザ内で縮小処理します。元画像は保存・送信されません。</p>
  </div>
  <p id="editStatus" class="hint" role="alert"></p>
@@ -344,7 +351,7 @@ body.g-clean .g-empty{position:absolute;inset:0;display:flex;align-items:center;
 const $=id=>document.getElementById(id), fields=['jpname','category','latin','acquired','registered','origin','memo'];
 const CAT={species:'原種',hybrid:'交配種',rex:'レックス',other:'その他'};
 const catTag=c=>{if(!c||!CAT[c])return null;const s=document.createElement('span');s.className='cat-tag';s.textContent=CAT[c];return s};
-let db,records=[],selected=null,editing=null,photos=[],photoIndex=0,formActive=false;
+let db,records=[],selected=null,editing=null,photos=[],photoIndex=0,formActive=false,photoSession=0;const slotSeq=[0,0,0];
 const todayLocal=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const openDB=()=>new Promise((ok,no)=>{const r=indexedDB.open('JBS_BotanicalArchive',1);
  r.onupgradeneeded=()=>r.result.createObjectStore('cards',{keyPath:'id'});
@@ -445,8 +452,8 @@ function list(){
  $('viewStatus').textContent='登録件数：'+records.length+'件';
  $('editSelected').disabled=!selected;$('deleteSelected').disabled=!selected;
 }
-function blank(){formActive=true;editing=null;photos=[];$('editStatus').textContent='';fields.forEach(k=>$(k).value='');$('category').value='species';$('photos').value='';$('photoStatus').textContent='写真は未選択です';$('formTitle').textContent='植物データの新規登録';$('registered').value=todayLocal();preview();mode('register');showForm()}
-function edit(id){const r=records.find(x=>x.id===id);if(!r)return;formActive=true;$('editStatus').textContent='';editing=id;fields.forEach(k=>$(k).value=r[k]||'');$('category').value=r.category||'species';photos=[...(r.photos||[])];$('photos').value='';$('photoStatus').textContent='登録済み写真 '+photos.length+'枚';$('formTitle').textContent='植物データの編集';preview();if(curMode!=='edit')mode('edit');showForm()}
+function blank(){formActive=true;editing=null;photos=[];$('editStatus').textContent='';fields.forEach(k=>$(k).value='');$('category').value='species';photoSession++;drawSlots();$('photoStatus').textContent='写真は未選択です';$('formTitle').textContent='植物データの新規登録';$('registered').value=todayLocal();preview();mode('register');showForm()}
+function edit(id){const r=records.find(x=>x.id===id);if(!r)return;formActive=true;$('editStatus').textContent='';editing=id;fields.forEach(k=>$(k).value=r[k]||'');$('category').value=r.category||'species';photos=[...(r.photos||[])];photoSession++;drawSlots();$('photoStatus').textContent='登録済み写真 '+photos.length+'枚';$('formTitle').textContent='植物データの編集';preview();if(curMode!=='edit')mode('edit');showForm()}
 function goEdit(){
  if(formActive&&editing){mode('edit');showForm()}
  else{formActive=false;mode('edit');const r=records.find(x=>x.id===selected);showCard(r||null);list()}
@@ -552,12 +559,32 @@ $('importFile').onchange=async e=>{
  }catch(err){$('dataStatus').textContent='読み込めませんでした。書き出したバックアップファイルを選んでください'}
 };
 
-$('photos').onchange=async e=>{
- const fs=[...e.target.files].filter(x=>x.type.startsWith('image/')).slice(0,3);if(!fs.length)return;
- $('photoStatus').textContent='写真を縮小しています…';const out=[];
- try{for(const file of fs)out.push(await shrink(file));photos=out;$('photoStatus').textContent=out.length+'枚を軽量化しました（長辺400px・JPEG品質80％）';preview()}
- catch(err){$('photoStatus').textContent='画像を処理できませんでした'}e.target.value='';
-};
+function drawSlots(){
+ const box=$('photoSlots');box.replaceChildren();
+ for(let i=0;i<3;i++){
+  const row=document.createElement('div');row.className='photo-slot';
+  if(photos[i]){const im=document.createElement('img');im.src=photos[i];im.alt='写真'+(i+1);row.append(im)}
+  else{const e=document.createElement('span');e.className='ph-empty';e.textContent='なし';row.append(e)}
+  const nm=document.createElement('span');nm.className='ph-name';nm.textContent='写真'+(i+1)+(photos[i]?'':'（未登録）');row.append(nm);
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.hidden=true;
+  inp.onchange=e=>pickSlot(e,i);
+  const pick=document.createElement('button');pick.type='button';pick.className='secondary';pick.textContent=photos[i]?'入れ替える':'追加する';pick.onclick=()=>inp.click();row.append(pick,inp);
+  if(photos[i]){const del=document.createElement('button');del.type='button';del.className='secondary';del.textContent='削除';del.onclick=()=>{photoSession++;photos.splice(i,1);drawSlots();preview();$('photoStatus').textContent='登録済み写真 '+photos.length+'枚'};row.append(del)}
+  box.append(row);
+ }
+}
+async function pickSlot(e,slot){
+ const file=e.target.files&&e.target.files[0];e.target.value='';if(!file||!file.type.startsWith('image/'))return;
+ const ses=photoSession,seq=++slotSeq[slot],draft=photos;
+ $('photoStatus').textContent='写真を縮小しています…';
+ try{
+  const data=await shrink(file);
+  if(ses!==photoSession||seq!==slotSeq[slot]||photos!==draft)return;
+  if(slot<photos.length)photos[slot]=data;else photos.push(data);
+  $('photoStatus').textContent='写真を軽量化しました（登録済み写真 '+photos.length+'枚）';
+  drawSlots();preview();photoIndex=Math.min(slot,photos.length-1);drawPhoto();
+ }catch(err){if(ses===photoSession&&seq===slotSeq[slot]&&photos===draft)$('photoStatus').textContent='画像を処理できませんでした'}
+}
 async function shrink(file){
  let im;if(window.createImageBitmap)im=await createImageBitmap(file);else im=await new Promise((ok,no)=>{const x=new Image(),u=URL.createObjectURL(file);x.onload=()=>{URL.revokeObjectURL(u);ok(x)};x.onerror=no;x.src=u});
  const scale=Math.min(1,400/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*scale));c.height=Math.max(1,Math.round(im.height*scale));
