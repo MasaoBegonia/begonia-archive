@@ -176,6 +176,9 @@ button:active{transform:translateY(1px)}
 .g-photos{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior:contain;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:manipulation}
 .g-photos .g-photo{flex:0 0 100%;height:100%;scroll-snap-align:center}
 .g-photos img{width:100%;height:100%;object-fit:contain;display:block}
+.g-slide .g-photos,.g-slide .photo-frame{touch-action:none}
+.g-slide .g-photos.dragging{scroll-snap-type:none}
+.g-slide .g-photos img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
 .g-dots{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:5px;z-index:3;pointer-events:none}
 .g-dots span{width:6px;height:6px;border-radius:50%;background:rgba(128,87,47,.35)}
 .g-dots span.on{background:#80572f}
@@ -479,8 +482,9 @@ function fillGalleryCard(card,r,n){
  stage.replaceChildren();
  if(ph.length){
   const wrap=document.createElement('div');wrap.className='g-photos';
-  ph.forEach(src=>{const c=document.createElement('div');c.className='g-photo';const im=document.createElement('img');im.src=src;im.alt='植物写真';c.append(im);wrap.append(c)});
+  ph.forEach(src=>{const c=document.createElement('div');c.className='g-photo';const im=document.createElement('img');im.src=src;im.alt='植物写真';im.draggable=false;c.append(im);wrap.append(c)});
   stage.append(wrap);
+  attachPhotoDrag(wrap);
   if(ph.length>1){
    const dots=document.createElement('div');dots.className='g-dots';
    ph.forEach(()=>dots.append(document.createElement('span')));
@@ -528,23 +532,38 @@ function scrollToSlide(id){
  setTimeout(updateGalleryPos,400);
 }
 $('galleryStrip').addEventListener('scroll',()=>requestAnimationFrame(updateGalleryPos),{passive:true});
-// Photo-area gesture lock (gallery only): a touch that starts on a slide's photo frame
-// must never scroll the outer strip, even when the inner photo strip cannot consume
-// the gesture (single photo, or already at the first/last photo). iOS Safari does not
-// reliably honor overscroll-behavior, so the outer strip is made unscrollable for the
-// duration of such a gesture and restored when the last touch lifts.
-let stripLock=false;
-function setStripLock(on){
- if(on===stripLock)return;
- stripLock=on;
- $('galleryStrip').style.overflowX=on?'hidden':'';
+// Gallery photo strips (v13.10): photo dragging is driven in JS with Pointer
+// Events. touch-action:none on .g-slide .photo-frame/.g-photos means a gesture
+// that starts in the photo area is never handed to any native scroller, so it
+// cannot chain to the outer card strip. (The v13.9 approach — locking the outer
+// strip's overflow-x during photo-area touches — also froze the inner strip on
+// WebKit, so it was removed.) overscroll-behavior:contain on .g-photos stays.
+// Native overflow-x:auto is untouched, so wheel/trackpad scrolling still works
+// when not dragging. Taps are never preventDefaulted here, so slide tap-select
+// and the panel's double-tap mode cycling keep working on the photo area.
+function attachPhotoDrag(wrap){
+ let drag=null;
+ wrap.addEventListener('pointerdown',e=>{
+  if(!e.isPrimary||drag)return;
+  if(e.target.closest&&e.target.closest('button,select,input,textarea,a'))return;
+  drag={id:e.pointerId,x0:e.clientX,sl0:wrap.scrollLeft,on:false};
+  try{wrap.setPointerCapture(e.pointerId)}catch(_){}
+ });
+ wrap.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.id)return;
+  const dx=e.clientX-drag.x0;
+  if(!drag.on){if(Math.abs(dx)<6)return;drag.on=true;wrap.classList.add('dragging')}
+  const max=Math.max(0,wrap.scrollWidth-wrap.clientWidth);
+  wrap.scrollLeft=Math.max(0,Math.min(max,drag.sl0-dx));
+ });
+ const end=e=>{
+  if(!drag||e.pointerId!==drag.id)return;
+  const wasOn=drag.on;drag=null;wrap.classList.remove('dragging');
+  if(wasOn){const w=Math.max(1,wrap.clientWidth),n=Math.max(1,Math.round(wrap.scrollWidth/w));const i=Math.max(0,Math.min(n-1,Math.round(wrap.scrollLeft/w)));wrap.scrollLeft=i*w}
+ };
+ wrap.addEventListener('pointerup',end);
+ wrap.addEventListener('pointercancel',end);
 }
-$('galleryPanel').addEventListener('touchstart',e=>{
- if(e.target&&e.target.closest&&e.target.closest('.g-slide .photo-frame'))setStripLock(true);
-},{capture:true,passive:true});
-['touchend','touchcancel'].forEach(ev=>document.addEventListener(ev,e=>{
- if(!e.touches||e.touches.length===0)setStripLock(false);
-},{passive:true}));
 const MODE_ORDER=['gallery','register','edit'];
 function cycleMode(){
  const n=MODE_ORDER[(MODE_ORDER.indexOf(curMode)+1)%MODE_ORDER.length];
