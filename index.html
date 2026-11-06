@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#ead9b4">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -161,12 +161,12 @@ button:active{transform:translateY(1px)}
 .toolbar button{min-width:104px}
 @media(max-width:760px){#recordList{max-height:300px}}
 #galleryPanel{grid-column:1/-1}
-.gallery-strip{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 2px 12px;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+.gallery-strip{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 2px 12px;-webkit-overflow-scrolling:touch;touch-action:manipulation}
 .g-slide{flex:0 0 88%;max-width:400px;scroll-snap-align:center}
 .g-slide .card{max-width:100%}
 .g-pos{text-align:center;color:#785b39;font-size:13px;letter-spacing:.12em;margin-top:2px}
 .g-empty{text-align:center;color:#785b39;padding:24px 0}
-.g-photos{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.g-photos{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:manipulation}
 .g-photos .g-photo{flex:0 0 100%;height:100%;scroll-snap-align:center}
 .g-photos img{width:100%;height:100%;object-fit:contain;display:block}
 .g-dots{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:5px;z-index:3;pointer-events:none}
@@ -174,7 +174,7 @@ button:active{transform:translateY(1px)}
 .g-dots span.on{background:#80572f}
 #cardNo{text-align:center;font-size:12px;letter-spacing:.14em;color:#9a7a50;margin:0 0 6px}
 .list-no{flex:none;min-width:2.2em;text-align:right;color:#9a7a50;font-size:12px}
-body,.preview-wrap{touch-action:manipulation}
+body,.preview-wrap,#galleryPanel,.card{touch-action:manipulation}
 .g-badge{position:absolute;bottom:calc(100% + 3px);right:0;z-index:4;font:12px Georgia,"Palatino Linotype",serif;letter-spacing:.08em;color:#80572f;background:transparent;padding:0;pointer-events:none;white-space:nowrap}
 .g-slide .photo-frame{margin-top:12px}
 body.g-clean{padding:0;overflow:hidden}
@@ -516,12 +516,13 @@ function cycleMode(){
 }
 let lastTap=0,lastCycle=0;
 function doCycle(){lastCycle=Date.now();cycleMode()}
-function onTapEnd(e){if(e.target.closest('button,select,input,textarea,a'))return;const n=Date.now();if(n-lastTap<350){lastTap=0;doCycle()}else lastTap=n}
+function onTapEnd(e){if(e.target.closest('button,select,input,textarea,a'))return;const n=Date.now();if(n-lastTap<350){lastTap=0;e.preventDefault();doCycle()}else lastTap=n}
 function onDblClick(e){if(e.target.closest('button,select,input,textarea,a'))return;if(Date.now()-lastCycle>500)doCycle()}
 [$('galleryPanel'),document.querySelector('.preview-wrap'),document.querySelector('header')].forEach(el=>{
- el.addEventListener('touchend',onTapEnd,{passive:true});
+ el.addEventListener('touchend',onTapEnd,{passive:false});
  el.addEventListener('dblclick',onDblClick);
 });
+document.addEventListener('gesturestart',e=>e.preventDefault());
 $('newRecord').onclick=blank;
 $('editSelected').onclick=()=>edit(selected);
 $('cancelEdit').onclick=()=>{formActive=false;mode('edit');const r=records.find(x=>x.id===selected);showCard(r||null);list()};
