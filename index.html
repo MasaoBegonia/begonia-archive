@@ -518,7 +518,7 @@ let lastTap=0,lastCycle=0;
 function doCycle(){lastCycle=Date.now();cycleMode()}
 function onTapEnd(e){if(e.target.closest('button,select,input,textarea,a'))return;const n=Date.now();if(n-lastTap<350){lastTap=0;doCycle()}else lastTap=n}
 function onDblClick(e){if(e.target.closest('button,select,input,textarea,a'))return;if(Date.now()-lastCycle>500)doCycle()}
-[$('galleryStrip'),document.querySelector('.preview-wrap'),document.querySelector('header')].forEach(el=>{
+[$('galleryPanel'),document.querySelector('.preview-wrap'),document.querySelector('header')].forEach(el=>{
  el.addEventListener('touchend',onTapEnd,{passive:true});
  el.addEventListener('dblclick',onDblClick);
 });
