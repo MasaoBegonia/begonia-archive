@@ -216,7 +216,7 @@ body.g-clean .g-empty{position:absolute;inset:0;display:flex;align-items:center;
  <div class="field"><label for="acquired">入手日</label><input id="acquired" type="date"></div>
  <div class="field"><label for="registered">登録日</label><input id="registered" type="date"></div>
  <div class="field"><label for="origin">国・地域</label><input id="origin" type="text" placeholder="例：Malaysia, Sarawak"></div>
- <div class="field"><label for="memo">特性・メモ（3行分）</label><textarea rows="3" style="min-height:4.5em" id="memo" placeholder="草姿、葉の特徴、生育環境、入手先など"></textarea></div>
+ <div class="field"><label for="memo">特性・メモ（5行分）</label><textarea rows="5" style="min-height:4.5em" id="memo" placeholder="草姿、葉の特徴、生育環境、入手先など"></textarea></div>
  <div class="field">
   <label>写真（最大3枚）</label>
   <div id="photoSlots" class="photo-slots"></div>
@@ -361,6 +361,16 @@ const openDB=()=>new Promise((ok,no)=>{const r=indexedDB.open('JBS_BotanicalArch
 const all=()=>new Promise((ok,no)=>{const r=db.transaction('cards').objectStore('cards').getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
 const save=r=>new Promise((ok,no)=>{const t=db.transaction('cards','readwrite');t.objectStore('cards').put(r);t.oncomplete=ok;t.onerror=()=>no(t.error)});
 const del=id=>new Promise((ok,no)=>{const t=db.transaction('cards','readwrite');t.objectStore('cards').delete(id);t.oncomplete=ok;t.onerror=()=>no(t.error)});
+const ctimeKey=r=>{const c=r.created?String(r.created):(/^card_\d+$/.test(r.id)?new Date(+String(r.id).slice(5)).toISOString():(r.registered?String(r.registered)+'T00:00:00.000Z':''));return c+'|'+r.id};
+async function ensureCseq(){
+ const seen=new Set();let bad=false;
+ for(const r of records){if(typeof r.cseq!=='number'||!isFinite(r.cseq)||r.cseq<1||seen.has(r.cseq))bad=true;seen.add(r.cseq)}
+ if(!bad)return;
+ const ordered=[...records].sort((a,b)=>{const x=ctimeKey(a),y=ctimeKey(b);return x<y?-1:x>y?1:0});
+ for(let i=0;i<ordered.length;i++){const r=ordered[i];if(r.cseq!==i+1){r.cseq=i+1;await save(r)}}
+}
+function rankMap(){const m=new Map();[...records].sort((a,b)=>(a.cseq||0)-(b.cseq||0)).forEach((r,i)=>m.set(r.id,i+1));return m}
+const nextCseq=()=>records.reduce((m,x)=>Math.max(m,typeof x.cseq==='number'?x.cseq:0),0)+1;
 const date=v=>v?(v.replaceAll('-','.')):'';
 function scientific(s){
  s=s||'';
@@ -396,9 +406,9 @@ function scientific(s){
 function refreshCardNo(){
  const el=$('cardNo');if(!el)return;
  const rid=editing||selected,hide=(formActive&&!editing)||!rid;
- const i=hide?-1:sorted().findIndex(x=>x.id===rid);
+ const i=hide?-1:(rankMap().get(rid)||-1);
  if(i<0){el.hidden=true;el.textContent='';return}
- el.hidden=false;el.textContent='No. '+(i+1)+' / '+records.length;
+ el.hidden=false;el.textContent='No. '+i+' / '+records.length;
 }
 function showCard(r){
  const jn=$('v-jpname');jn.textContent=r?.jpname||'';const jt=catTag(r?.category);if(jt)jn.append(jt);$('v-latin').replaceChildren(scientific(r?.latin||''));
@@ -444,9 +454,9 @@ function sorted(){
 }
 function list(){
  const box=$('recordList'),st=box.scrollTop;box.replaceChildren();
- const cf=$('catFilter').value;
+ const cf=$('catFilter').value,rk=rankMap();
  sorted().forEach((r,i)=>{if(cf!=='all'&&r.category!==cf)return;const b=document.createElement('button');b.type='button';b.className='record';b.style.cssText='display:flex;width:100%;text-align:left;background:#f8f0df;color:#80572f;border:1px solid #b99a6c;margin:5px 0;align-items:center;gap:9px';
- const no=document.createElement('span');no.className='list-no';no.textContent=i+1;b.append(no);
+ const no=document.createElement('span');no.className='list-no';no.textContent=rk.get(r.id);b.append(no);
  const im=document.createElement('img');im.style.cssText='width:48px;height:48px;object-fit:contain;background:#ead9b4';if(r.photos?.[0])im.src=r.photos[0];
  const t=document.createElement('span');t.textContent=(r.latin||r.jpname||'名称未入力')+'　'+date(r.registered);b.append(im,t);const lt=catTag(r.category);if(lt)b.append(lt);
  if(r.id===selected)b.style.outline='2px solid #a77b49';b.onclick=()=>{selected=r.id;showCard(r);list()};box.append(b)});
@@ -492,11 +502,11 @@ function fillGalleryCard(card,r,n){
 }
 function buildGallery(){
  const strip=$('galleryStrip');strip.replaceChildren();strip.scrollLeft=0;
- const arr=sorted(),cf=$('catFilter').value,slides=arr.filter(r=>cf==='all'||r.category===cf);
+ const arr=sorted(),cf=$('catFilter').value,slides=arr.filter(r=>cf==='all'||r.category===cf),rk=rankMap();
  $('galleryEmpty').hidden=slides.length>0;
  slides.forEach(r=>{
-  const slide=document.createElement('div');slide.className='g-slide';slide.dataset.rid=r.id;slide.dataset.n=arr.indexOf(r)+1;
-  slide.append(fillGalleryCard($('card').cloneNode(true),r,arr.indexOf(r)+1));
+  const slide=document.createElement('div');slide.className='g-slide';slide.dataset.rid=r.id;slide.dataset.n=rk.get(r.id);
+  slide.append(fillGalleryCard($('card').cloneNode(true),r,rk.get(r.id)));
   slide.addEventListener('click',()=>{selected=r.id;refreshCardNo()});
   strip.append(slide);
  });
@@ -556,7 +566,7 @@ $('importFile').onchange=async e=>{
   if(!Array.isArray(recs)||!recs.length||!recs.every(r=>r&&typeof r==='object'&&r.id))throw new Error('bad file');
   if(!confirm(recs.length+'件のデータを読み込みます。同じ記録は上書きされます。よろしいですか？'))return;
   for(const r of recs)await save(r);
-  records=await all();selected=null;showCard(null);list();
+  records=await all();await ensureCseq();selected=null;showCard(null);list();
   $('dataStatus').textContent=recs.length+'件を読み込みました';
  }catch(err){$('dataStatus').textContent='読み込めませんでした。書き出したバックアップファイルを選んでください'}
 };
@@ -610,13 +620,13 @@ async function shrink(file){
 $('saveRecord').onclick=async()=>{
  const d=form();if(!d.latin.trim()&&!d.jpname.trim()){alert('和名または学名を入力してください');return}
  const old=records.find(x=>x.id===editing),now=new Date().toISOString(),wasNew=!editing;
- const r={...d,photos:[...photos],id:editing||('card_'+Date.now()),created:old?.created||now,updated:now};
+ const r={...d,photos:[...photos],id:editing||('card_'+Date.now()),created:old?.created||now,updated:now,cseq:typeof old?.cseq==='number'?old.cseq:nextCseq()};
  try{await save(r);records=await all();selected=r.id;formActive=false;if(wasNew){mode('gallery');requestAnimationFrame(()=>scrollToSlide(r.id))}else{mode('edit');showCard(r);list()}}
  catch(e){$('editStatus').textContent='保存できませんでした。ブラウザの保存容量をご確認ください'}
 };
 $('deleteSelected').onclick=async()=>{const r=records.find(x=>x.id===selected);if(!r||!confirm('このカードを削除しますか？'))return;await del(selected);records=await all();selected=null;showCard(null);list()};
 $('printBtn').onclick=()=>window.print();
-(async()=>{try{await openDB();records=await all();if(records.length){records.sort((a,b)=>String(b.updated).localeCompare(String(a.updated)));selected=records[0].id;showCard(records[0])}else showCard(null);list();mode('gallery')}
+(async()=>{try{await openDB();records=await all();await ensureCseq();if(records.length){records.sort((a,b)=>String(b.updated).localeCompare(String(a.updated)));selected=records[0].id;showCard(records[0])}else showCard(null);list();mode('gallery')}
 catch(e){$('viewStatus').textContent='このブラウザでは保存機能を利用できません。最新版のSafariまたはChromeをお試しください'}})();
 })();
 </script>
