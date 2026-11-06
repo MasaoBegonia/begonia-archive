@@ -173,7 +173,7 @@ button:active{transform:translateY(1px)}
 .g-slide .card{max-width:100%}
 .g-pos{text-align:center;color:#785b39;font-size:13px;letter-spacing:.12em;margin-top:2px}
 .g-empty{text-align:center;color:#785b39;padding:24px 0}
-.g-photos{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:manipulation}
+.g-photos{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior:contain;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:manipulation}
 .g-photos .g-photo{flex:0 0 100%;height:100%;scroll-snap-align:center}
 .g-photos img{width:100%;height:100%;object-fit:contain;display:block}
 .g-dots{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:5px;z-index:3;pointer-events:none}
@@ -528,6 +528,23 @@ function scrollToSlide(id){
  setTimeout(updateGalleryPos,400);
 }
 $('galleryStrip').addEventListener('scroll',()=>requestAnimationFrame(updateGalleryPos),{passive:true});
+// Photo-area gesture lock (gallery only): a touch that starts on a slide's photo frame
+// must never scroll the outer strip, even when the inner photo strip cannot consume
+// the gesture (single photo, or already at the first/last photo). iOS Safari does not
+// reliably honor overscroll-behavior, so the outer strip is made unscrollable for the
+// duration of such a gesture and restored when the last touch lifts.
+let stripLock=false;
+function setStripLock(on){
+ if(on===stripLock)return;
+ stripLock=on;
+ $('galleryStrip').style.overflowX=on?'hidden':'';
+}
+$('galleryPanel').addEventListener('touchstart',e=>{
+ if(e.target&&e.target.closest&&e.target.closest('.g-slide .photo-frame'))setStripLock(true);
+},{capture:true,passive:true});
+['touchend','touchcancel'].forEach(ev=>document.addEventListener(ev,e=>{
+ if(!e.touches||e.touches.length===0)setStripLock(false);
+},{passive:true}));
 const MODE_ORDER=['gallery','register','edit'];
 function cycleMode(){
  const n=MODE_ORDER[(MODE_ORDER.indexOf(curMode)+1)%MODE_ORDER.length];
