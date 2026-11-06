@@ -354,7 +354,11 @@ const save=r=>new Promise((ok,no)=>{const t=db.transaction('cards','readwrite');
 const del=id=>new Promise((ok,no)=>{const t=db.transaction('cards','readwrite');t.objectStore('cards').delete(id);t.oncomplete=ok;t.onerror=()=>no(t.error)});
 const date=v=>v?(v.replaceAll('-','.')):'';
 function scientific(s){
- const f=document.createDocumentFragment(),parts=(s||'').match(/'[^']*'|\"[^\"]*\"|×|[^\s]+|\s+/g)||[];
+ s=s||'';
+ const STEMS=new Set(['sp','spp','subsp','ssp','var','f','forma','cv','cf','aff']);
+ let before;
+ do{before=s;s=s.replace(/([^\s.]+)\.([A-Za-z])/g,(m,pre,ch)=>(STEMS.has(pre.toLowerCase())||/^[A-Z]$/.test(pre))?pre+'. '+ch:m)}while(s!==before);
+ const f=document.createDocumentFragment(),parts=s.match(/'[^']*'|\"[^\"]*\"|×|[^\s]+|\s+/g)||[];
  const RANK_NEXT=new Set(['subsp','ssp','var','f','forma','cf','aff','spp']);
  const MARKS=new Set(['sp','spp','subsp','ssp','var','f','forma','cv','cf','aff']);
  let genus=false,epi=false,next=false,stop=false;
