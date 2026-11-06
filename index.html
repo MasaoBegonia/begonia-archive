@@ -54,6 +54,7 @@ textarea{min-height:88px;resize:vertical;line-height:1.6}
 .hint{font-size:11px;color:#806b4f;line-height:1.5;margin:5px 0 0}
 .photo-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .photo-slots{display:flex;flex-direction:column;gap:8px}
+.photo-bulk{margin-top:8px}
 .photo-slot{display:flex;align-items:center;gap:9px;background:rgba(255,252,241,.55);border:1px solid #d8c49c;border-radius:4px;padding:6px 8px}
 .photo-slot img{width:44px;height:44px;object-fit:contain;background:#ead9b4;border-radius:3px;flex:none}
 .photo-slot .ph-empty{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;background:#ead9b4;border-radius:3px;color:#9b805a;font-size:10px}
@@ -219,6 +220,7 @@ body.g-clean .g-empty{position:absolute;inset:0;display:flex;align-items:center;
  <div class="field">
   <label>写真（最大3枚）</label>
   <div id="photoSlots" class="photo-slots"></div>
+  <div class="photo-bulk"><button type="button" class="secondary" id="bulkPickBtn">写真をまとめて選び直す（最大3枚）</button><input type="file" id="bulkPick" accept="image/*" multiple hidden></div>
   <p class="photo-status" id="photoStatus">写真は長辺400px・JPEG品質80%に自動調整</p>
   <p class="hint">画像はこのブラウザ内で縮小処理します。元画像は保存・送信されません。</p>
  </div>
@@ -351,7 +353,7 @@ body.g-clean .g-empty{position:absolute;inset:0;display:flex;align-items:center;
 const $=id=>document.getElementById(id), fields=['jpname','category','latin','acquired','registered','origin','memo'];
 const CAT={species:'原種',hybrid:'交配種',rex:'レックス',other:'その他'};
 const catTag=c=>{if(!c||!CAT[c])return null;const s=document.createElement('span');s.className='cat-tag';s.textContent=CAT[c];return s};
-let db,records=[],selected=null,editing=null,photos=[],photoIndex=0,formActive=false,photoSession=0;const slotSeq=[0,0,0];
+let db,records=[],selected=null,editing=null,photos=[],photoIndex=0,formActive=false,photoSession=0,photoOps=0,bulkSeq=0;const slotSeq=[0,0,0];
 const todayLocal=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const openDB=()=>new Promise((ok,no)=>{const r=indexedDB.open('JBS_BotanicalArchive',1);
  r.onupgradeneeded=()=>r.result.createObjectStore('cards',{keyPath:'id'});
@@ -569,22 +571,36 @@ function drawSlots(){
   const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.hidden=true;
   inp.onchange=e=>pickSlot(e,i);
   const pick=document.createElement('button');pick.type='button';pick.className='secondary';pick.textContent=photos[i]?'入れ替える':'追加する';pick.onclick=()=>inp.click();row.append(pick,inp);
-  if(photos[i]){const del=document.createElement('button');del.type='button';del.className='secondary';del.textContent='削除';del.onclick=()=>{photoSession++;photos.splice(i,1);drawSlots();preview();$('photoStatus').textContent='登録済み写真 '+photos.length+'枚'};row.append(del)}
+  if(photos[i]){const del=document.createElement('button');del.type='button';del.className='secondary';del.textContent='削除';del.onclick=()=>{photoSession++;photoOps++;photos.splice(i,1);drawSlots();preview();$('photoStatus').textContent='登録済み写真 '+photos.length+'枚'};row.append(del)}
   box.append(row);
  }
 }
 async function pickSlot(e,slot){
  const file=e.target.files&&e.target.files[0];e.target.value='';if(!file||!file.type.startsWith('image/'))return;
- const ses=photoSession,seq=++slotSeq[slot],draft=photos;
+ const ses=photoSession,seq=++slotSeq[slot],draft=photos,bulkMark=bulkSeq;photoOps++;
  $('photoStatus').textContent='写真を縮小しています…';
  try{
   const data=await shrink(file);
-  if(ses!==photoSession||seq!==slotSeq[slot]||photos!==draft)return;
+  if(ses!==photoSession||seq!==slotSeq[slot]||photos!==draft||bulkSeq!==bulkMark)return;
   if(slot<photos.length)photos[slot]=data;else photos.push(data);
   $('photoStatus').textContent='写真を軽量化しました（登録済み写真 '+photos.length+'枚）';
   drawSlots();preview();photoIndex=Math.min(slot,photos.length-1);drawPhoto();
- }catch(err){if(ses===photoSession&&seq===slotSeq[slot]&&photos===draft)$('photoStatus').textContent='画像を処理できませんでした'}
+ }catch(err){if(ses===photoSession&&seq===slotSeq[slot]&&photos===draft&&bulkSeq===bulkMark)$('photoStatus').textContent='画像を処理できませんでした'}
 }
+async function pickBulk(e){
+ const fs=[...(e.target.files||[])].filter(f=>f.type.startsWith('image/')).slice(0,3);e.target.value='';if(!fs.length)return;
+ const ses=photoSession,draft=photos,op=++photoOps;bulkSeq=op;
+ $('photoStatus').textContent='写真を縮小しています…';
+ try{
+  const out=await Promise.all(fs.map(f=>shrink(f)));
+  if(ses!==photoSession||photos!==draft||op!==photoOps)return;
+  photos=out;photoIndex=0;
+  $('photoStatus').textContent='写真を軽量化しました（登録済み写真 '+photos.length+'枚）';
+  drawSlots();preview();
+ }catch(err){if(ses===photoSession&&photos===draft&&op===photoOps)$('photoStatus').textContent='画像を処理できませんでした'}
+}
+$('bulkPickBtn').onclick=()=>$('bulkPick').click();
+$('bulkPick').onchange=e=>pickBulk(e);
 async function shrink(file){
  let im;if(window.createImageBitmap)im=await createImageBitmap(file);else im=await new Promise((ok,no)=>{const x=new Image(),u=URL.createObjectURL(file);x.onload=()=>{URL.revokeObjectURL(u);ok(x)};x.onerror=no;x.src=u});
  const scale=Math.min(1,400/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*scale));c.height=Math.max(1,Math.round(im.height*scale));
